@@ -23,7 +23,16 @@ def handleUncertain(data, log, report):
     # log.append("Dropped " + i + "due to uncertainity")
 
 
-def clean(data, to_drop=[], na_thresh=0.25, percofcat=0.25, encode_cat=True, drop_rows_if_needed=True, num_interpolate="mean"):
+def check_values(data, col):
+    l = list(data[col])
+    for i, val in enumerate(l):
+        if type(val) != str:
+            l[i] = "NULL"
+    data[col] = pd.Series(l)
+
+
+
+def clean(data, to_drop=[], na_thresh=0.25, percofcat=0.25, encode=True, drop_rows_if_needed=True, num_interpolate="mean"):
     log = []
     encodings = {}
     for i in to_drop:
@@ -34,11 +43,9 @@ def clean(data, to_drop=[], na_thresh=0.25, percofcat=0.25, encode_cat=True, dro
     if report["uncertain"]:
         data, log, report = handleUncertain(data, log, report)
         report.pop("uncertain")
-        print("uncertain" in report)
     # print(report, "\n\n")
 
     for i in report:
-        # print(i)
         if report[i]["na"] >= na_thresh :
             '''If column is empty beyond limits, remove it'''
             data = data.drop(i, axis=1)
@@ -62,9 +69,10 @@ def clean(data, to_drop=[], na_thresh=0.25, percofcat=0.25, encode_cat=True, dro
 
         elif report[i]["type"] == 'cat' and report[i]["na"] < na_thresh :
             '''If categorical and empty within limits, ...'''
-            log.append(i + " has Na percentage of " + str(report[i]["na"]) + " < " + str(na_thresh) + " but is categorical.")
+            # log.append(i + " has Na percentage of " + str(report[i]["na"]) + " < " + str(na_thresh) + " but is categorical.")
+            check_values(data, i)
 
-        elif report[i]["type"] == 'cat' and encode_cat:
+        if report[i]["type"] == 'cat' and encode==True and i in data.columns:
             '''If categorical and not empty, encode it'''
             encodings[i] = getEncodings(data[i])
             log.append("Encoded column " + i)
@@ -76,8 +84,8 @@ def clean(data, to_drop=[], na_thresh=0.25, percofcat=0.25, encode_cat=True, dro
         log.append("Dropped " + str(shape1[0] - shape2[0]) + " rows")
         data = data1
 
-    data = data.replace(encodings)
-
+    if encode:
+        data = data.replace(encodings)
 
     return data, log, encodings
 
